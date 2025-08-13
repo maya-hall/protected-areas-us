@@ -3,7 +3,9 @@ This case study provides an overview comparison of products from the Landscape C
 <p>Study Area: Iowa</p>
 
 <p>Data Acquisition:
-*LCMS Land Cover - GEE
-*LCMS Land Use - GEE
-*NLCD Land Cover - Data Viewer
+<ul>
+<li>LCMS Land Cover - GEE</li>
+<li>LCMS Land Use - GEE </li>
+<li>NLCD Land Cover - Data Viewer</li>
+</ul>
 </p>
