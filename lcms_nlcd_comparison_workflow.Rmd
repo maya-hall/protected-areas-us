@@ -1,0 +1,271 @@
+---
+title: "LCMS_NLCD_Comparison"
+author: "Maya Hall"
+date: "2025-08-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## This mini-project consists of a comparison between land cover and land use products from the Landscape Change Monitoring System (USFS) and the National Land Cover Database (USGS). The study area for this project is Iowa, but the workflow can be adapted to any U.S. state, or applied regionally or nationally.
+
+```{r Libraries and Data, echo=FALSE}
+library(terra)
+library(sf)
+library(dplyr)
+library(ggplot2)
+
+# LCMS land cover
+lcms_2014 <- rast("LCMS_2014_Iowa.tif")
+lcms_2024 <- rast("LCMS_2024_Iowa.tif")
+
+# LCMS land use
+lcms_2014_use <- rast("LCMS_2014_LandUse_Iowa.tif")
+lcms_2024_use <- rast("LCMS_2024_LandUse_Iowa.tif")
+
+# NLCD land cover
+nlcd_2014 <- rast("Annual_NLCD_LndCov_2014_CU_C1V1_JdCEx70BLxASLxnbr49b.tiff")
+levels(nlcd_2014) <- NULL
+nlcd_2014 <- as.factor(nlcd_2014)
+nlcd_2024 <- rast("Annual_NLCD_LndCov_2024_CU_C1V1_87X8fyuarZndA6oX30F0.tiff")
+levels(nlcd_2024) <- NULL
+nlcd_2024 <- as.factor(nlcd_2024)
+
+# Iowa state boundary
+iowa_boundary <- st_read("iowa_border.shp")
+
+# protected areas
+pad_us <- st_read("PADUS4_1Combined_StateIA.shp")
+
+```
+
+## After loading in the necessary data, double check and adjust the coordinate reference systems and extents. 
+
+```{r CRS and Extent, echo=FALSE}
+
+# EPSG: 5070 (Albers)
+
+iowa_state <- st_transform(iowa_boundary, crs("EPSG:5070"))
+iowa_vect <- vect(iowa_state)
+common_extent <- ext(iowa_vect)
+
+lcms_2014_crop <- crop(lcms_2014, common_extent)
+lcms_2024_crop <- crop(lcms_2024, common_extent)
+
+lcms_2014_use_crop <- crop(lcms_2014_use, common_extent)
+lcms_2024_use_crop <- crop(lcms_2024_use, common_extent)
+
+nlcd_2014_crop <- crop(nlcd_2014, common_extent)
+nlcd_2024_crop <- crop(nlcd_2024, common_extent)
+
+```
+
+## Filter the PAD-US data so that you only consider GAP statuses 1 & 2 for this project. 
+
+```{r PAD-US Transform and Filter, echo=FALSE}
+
+pad_us_transform <- st_transform(pad_us, st_crs(iowa_state))
+pad_us_crop <- st_intersection(pad_us_transform, iowa_state)
+pad_us_cleaned <- pad_us_crop[, -which(names(pad_us_crop) 
+                                       %in% c("Comments", "Duration", "Des_Tp", "GIS_Src", "d_State_Nm",
+                                              "d_Own_Name", "Term", "IUCNCtDt", "FeatClass", 
+                                              "d_Own_Type", "Own_Name", "Access_Dt", "Access_Src", 
+                                              "Agg_Src", "Loc_Ds", "GAPdSrc", "GAPCdDt", "Category", 
+                                              "Field_1", "State_Nm", "d_Category", "GAPCdSrc", 
+                                              "IUCNCtSrc"))]
+
+pad_us_filtered <- pad_us_cleaned%>%filter(GAP_Sts == "1" | GAP_Sts=="2")
+
+```
+
+## Create a 10 km buffer around each protected area (PA). Note that this study includes the buffer AND the PA land. If desired, additional steps can be taken to remove the PA from analysis while leaving the buffer.
+
+```{r Buffer, echo=FALSE}
+
+# 10 km (10,000 meters)
+pad_us_buffered_sf <- st_buffer(pad_us_filtered, dist = 10000)
+pad_us_buffered_vect <- vect(pad_us_buffered_sf)
+template_raster <- rast(lcms_2014_use_crop)
+pad_us_buffered_rast <- rasterize(pad_us_buffered_vect, template_raster, field = 1, background = NA)
+```
+
+## Check that the buffer falls within the correct extent and visually makes sense. 
+
+```{r Check Buffer, echo=FALSE}
+
+plot(pad_us_buffered_rast, col = c(NA, "forestgreen"), main = "10 km Buffer Around Each PAD-US Area")
+plot(iowa_state, add=TRUE, col=NA, border="yellow", lwd=1.5)
+
+```
+
+## Crop and mask each data product to the buffer. Specifically for LCMS, you may need to convert the 0 values to NA.
+
+```{r Crop and mask, echo=FALSE}
+
+# turn the zeroes into NA
+lcms_2014_crop[lcms_2014_crop == 0] <- NA
+lcms_2024_crop[lcms_2024_crop == 0] <-NA
+
+lcms_2014_use_crop[lcms_2014_use_crop == 0] <- NA
+lcms_2024_use_crop[lcms_2024_use_crop == 0] <- NA
+
+# mask
+lcms_2014_masked <- mask(crop(lcms_2014_crop, pad_us_buffered_rast), pad_us_buffered_rast)
+lcms_2024_masked <- mask(crop(lcms_2024_crop, pad_us_buffered_rast), pad_us_buffered_rast)
+
+lcms_2014_use_masked <- mask(crop(lcms_2014_use_crop, pad_us_buffered_rast), pad_us_buffered_rast)
+lcms_2024_use_masked <- mask(crop(lcms_2024_use_crop, pad_us_buffered_rast), pad_us_buffered_rast)
+
+nlcd_2014_masked <- mask(crop(nlcd_2014_crop, pad_us_buffered_rast), pad_us_buffered_rast)
+nlcd_2024_masked <- mask(crop(nlcd_2024_crop, pad_us_buffered_rast), pad_us_buffered_rast)
+```
+
+## Summarize the number of pixels per land cover or land use type.
+
+```{r Frequency, echo=FALSE}
+
+freq(lcms_2014_masked)
+freq(lcms_2024_masked)
+
+freq(lcms_2014_use_masked)
+freq(lcms_2024_use_masked)
+
+freq(nlcd_2014_masked)
+freq(nlcd_2024_masked)
+
+```
+
+## Calculate total pixel change for each land cover or land use product. 
+
+```{r Total Pixel Change, echo=FALSE}
+
+# LCMS land cover
+lcms_stack <- c(lcms_2014_masked, lcms_2024_masked)
+names(lcms_stack) <- c("lcms_2014", "lcms_2024")
+change_map <- lcms_2014_masked != lcms_2024_masked
+change_map_lcms <- crop(change_map, iowa_state) # re-crop to remove extra buffer on edge
+changed_pixels <- freq(change_map_lcms)
+print(changed_pixels)
+
+# LCMS land use
+lcms_use_stack <- c(lcms_2014_use_masked, lcms_2024_use_masked)
+names(lcms_use_stack) <- c("lcms_2014_use", "lcms_2024_use")
+change_map_use <- lcms_2014_use_masked != lcms_2024_use_masked
+change_map_use_lcms <- crop(change_map_use, iowa_state)
+changed_use_pixels <- freq(change_map_use_lcms)
+print(changed_use_pixels)
+
+# NLCD land cover
+nlcd_stack <-c(nlcd_2014_masked, nlcd_2024_masked)
+names(nlcd_stack) <- c("nlcd_2014", "nlcd_2024")
+change_nlcd <-nlcd_2014_masked != nlcd_2024_masked
+changed_nlcd_pixels <- freq(change_nlcd)
+print(changed_nlcd_pixels)
+
+```
+
+## Briefly look at what pixels changed to by class. 
+
+```{r Changed To, echo=FALSE}
+
+# LCMS land cover
+lcms_change_pairs <- terra::as.data.frame(lcms_stack, na.rm = TRUE)
+lcms_change_pairs <- lcms_change_pairs[lcms_change_pairs$lcms_2014 != lcms_change_pairs$lcms_2024, ]
+transitions_lcms <- as.data.frame(table(lcms_change_pairs$lcms_2014, lcms_change_pairs$lcms_2024))
+names(transitions_lcms) <- c("From", "To", "Count")
+
+# sort by highest count of transitions
+transitions <- transitions_lcms[order(-transitions_lcms$Count), ]
+head(transitions)
+
+# LCMS land use
+lcms_change_pairs_use <- terra::as.data.frame(lcms_use_stack, na.rm = TRUE)
+lcms_change_pairs_use_overlap <- lcms_change_pairs_use[lcms_change_pairs_use$lcms_2014_use != lcms_change_pairs_use$lcms_2024_use, ]
+transitions_lcms_use <- as.data.frame(table(lcms_change_pairs_use_overlap$lcms_2014_use, lcms_change_pairs_use_overlap$lcms_2024_use))
+names(transitions_lcms_use) <- c("From", "To", "Count")
+transitions_use <- transitions_lcms_use[order(-transitions_lcms_use$Count), ]
+head(transitions_lcms_use)
+
+# NLCD land cover
+nlcd_change_pairs <- terra::as.data.frame(nlcd_stack, na.rm=TRUE)
+nlcd_change_pairs_overlap <- nlcd_change_pairs[nlcd_change_pairs$nlcd_2014 != nlcd_change_pairs$nlcd_2024, ]
+transitions_nlcd <- as.data.frame(table(nlcd_change_pairs_overlap$nlcd_2014, nlcd_change_pairs_overlap$nlcd_2024))
+names(transitions_nlcd) <- c("From", "To", "Count")
+transitions_nlcd <- transitions_nlcd[order(-transitions_nlcd$Count), ]
+head(transitions_nlcd)
+
+
+```
+
+## Create maps of change to examine spatial distribution of changed pixels. 
+
+```{r Change Maps, echo=FALSE}
+
+# assign change color
+change_colors <- c("0" = "gray2", "1" = "darkorange")
+
+# LCMS change map
+plot(change_map_lcms, col = change_colors, legend = TRUE, main = "LCMS Change: 2014–2024")
+  
+# LCMS use change map
+plot(change_map_use_lcms, col=change_colors, legend=TRUE, main = "LCMS Use Change: 2014-2024")
+
+# NLCD change map
+plot(change_nlcd, col = change_colors, legend = TRUE, main = "NLCD Change: 2014–2024")
+
+```
+
+## Optional: Case study of "Developed Pixels".
+
+```{r Change in developed land cover and land use, echo=FALSE}
+
+# LCMS land use
+total_pixels_use <- global(!is.na(lcms_2014_use_masked), "sum")[[1]]
+dev_2014_lcms <- global(lcms_2014_use_masked == 2, "sum", na.rm = TRUE)[[1]]
+dev_2024_lcms <- global(lcms_2024_use_masked == 2, "sum", na.rm = TRUE)[[1]]
+dev_gain_pixels_lcms <- global((lcms_2014_use_masked != 2) & (lcms_2024_use_masked == 2), 
+                     "sum", na.rm = TRUE)[[1]]
+
+dev_gain_lcms <- (lcms_2014_use_masked != 2) & (lcms_2024_use_masked == 2)
+dev_gain_lcms_binary <- ifel(dev_gain_lcms, 1, 0)
+iowa_vect <- project(iowa_vect, crs(dev_gain_lcms))
+dev_gain_lcms_masked <- mask(dev_gain_lcms_binary, iowa_vect)
+  
+# percentages
+cat("2014 lcms developed %:", round(dev_2014_lcms / total_pixels_use * 100, 4), "\n")
+cat("2024 lcms developed %:", round(dev_2024_lcms / total_pixels_use * 100, 4), "\n")
+cat("Gained %:", round(dev_gain_pixels_lcms / total_pixels_use * 100, 4), "\n")
+
+# NLCD land cover
+
+nlcd_dev_ids <- c(21, 22, 23, 24)
+  
+nlcd_dev_gain <- !(nlcd_2014_masked %in% nlcd_dev_ids) & (nlcd_2024_masked %in% nlcd_dev_ids)
+iowa_vect <- project(iowa_vect, crs(nlcd_dev_gain)) # this might be redundant 
+nlcd_dev_gain_masked1 <- mask(nlcd_dev_gain, iowa_vect)
+nlcd_dev_gain_masked <- mask(nlcd_dev_gain_masked1, pad_us_buffered_rast)
+  
+total_pixels_nlcd <- global(!is.na(nlcd_2014_masked), "sum")[[1]]
+dev_2014_nlcd <- global(nlcd_2014_masked %in% nlcd_dev_ids, "sum", na.rm = TRUE)[[1]]
+dev_2024_nlcd <- global(nlcd_2024_masked %in% nlcd_dev_ids, "sum", na.rm = TRUE)[[1]]
+dev_gain_pixels_nlcd <- global(nlcd_dev_gain, "sum")[[1]]
+
+cat("2014 nlcd developed %:", round(dev_2014_nlcd/total_pixels_nlcd * 100, 4), "\n")
+cat("2024 nlcd developed %:", round(dev_2024_nlcd/total_pixels_nlcd * 100, 4), "\n")
+cat("Gained %:", round(dev_gain_pixels_nlcd/total_pixels_nlcd * 100, 4), "\n")
+
+```
+
+## Plot the developed land cover/use outputs.
+
+```{r}
+# LCMS land use
+plot(dev_gain_lcms_masked, col = c("gray2", "orangered1"), main = "LCMS: Pixels Changed to Developed")
+
+# NLCD land cover
+plot(nlcd_dev_gain_masked, col = c("gray2","orangered1"), main = "NLCD: Pixels Changed to Developed")
+
+```
+
