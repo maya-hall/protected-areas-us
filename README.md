@@ -4,7 +4,6 @@ While protected areas (PAs) are common throughout the globe, understanding their
 This case study provides an overview comparison of products from the Landscape Change Monitoring System (LCMS) from the US Forest Service and the National Land Cover Database from the US Geological Survey. 
 
   <p>Study Area: Iowa</p>
-
   <p>Data Acquisition:
   <ul>
   <li>LCMS Land Cover - GEE</li>
@@ -12,14 +11,13 @@ This case study provides an overview comparison of products from the Landscape C
   <li>NLCD Land Cover - Data Viewer</li>
   </ul>
   </p>
-
   <p>Tools and Languages:
   <ul>
   <li> Google Earth Engine (GEE)</li>
   <li>R and R markdown</li>
   <li> QGIS</li>
   </p>
-
+<div>
 <h2><strong>PAs by state comparison</strong></h2>
 In the interest of identifying U.S. states and their associated PAs, I've produced a variety of tables comparing metrics such as total PA area and percent coverage of each state by PAs. 
 
@@ -29,3 +27,4 @@ In the interest of identifying U.S. states and their associated PAs, I've produc
   <li> State areas in sq km - U.S. Census Bureau (2010)</li>
   </ul>
   </p>
+</div>
