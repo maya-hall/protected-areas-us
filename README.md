@@ -27,3 +27,9 @@ In the interest of identifying U.S. states and their associated PAs, I've produc
   <li>State Areas (sq km) - U.S. Census Bureau </li>
   </ul>
   </p>
+  <p>Tools and Languages:
+  <ul>
+  <li>R</li>
+  <li>QGIS</li>
+  </ul>
+  </div>
