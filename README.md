@@ -21,10 +21,9 @@ This case study provides an overview comparison of products from the Landscape C
 <h2><strong>PAs by state comparison</strong></h2>
 In the interest of identifying U.S. states and their associated PAs, I've produced a variety of tables comparing metrics such as total PA area and percent coverage of each state by PAs. 
 
-  <p><Data Acquisition:
+  <p>Data Acquisition:
   <ul>
-  <li>World Database on Protected Areas (WDPA) - Data downloader on website</li>
-  <li> State areas in sq km - U.S. Census Bureau (2010)</li>
+  <li>World Database on Protected Areas (WDPA) - Protected Planet data downloader</li>
+  <li>State Areas (sq km) - U.S. Census Bureau </li>
   </ul>
   </p>
-</div>
