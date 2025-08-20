@@ -11,6 +11,7 @@ This case study provides an overview comparison of products from the Landscape C
 <li>LCMS Land Use - GEE </li>
 <li>NLCD Land Cover - Data Viewer</li>
 </ul>
+</p>
 
 <p>Tools and Languages:
 <ul>
@@ -18,7 +19,7 @@ This case study provides an overview comparison of products from the Landscape C
   <li>R and R markdown</li>
   <li> QGIS</li>
 </p>
-</p>
+
 
 <strong>PAs by state comparison</strong>
 In the interest of identifying U.S. states and their associated PAs, I've produced a variety of tables comparing metrics such as total PA area and percent coverage of each state by PAs. 
